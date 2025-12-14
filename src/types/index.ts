@@ -1,4 +1,4 @@
-export type Frequency = 'daily' | 'weekly' | 'monthly' | 'once';
+export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'once';
 export type TaskType = 'task' | 'habit';
 
 export interface Task {
@@ -8,6 +8,7 @@ export interface Task {
     description?: string;
     type: TaskType;
     frequency: Frequency;
+    days_of_week?: number[]; // 0=Sun, 1=Mon, etc.
     is_bad: boolean;
     reminder_time?: string;
     created_at: string;

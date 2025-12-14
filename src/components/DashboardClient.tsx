@@ -12,7 +12,9 @@ import { format } from "date-fns";
 
 import { logout } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, PieChart } from "lucide-react";
+import { QuoteCard } from "@/components/QuoteCard";
+import { Analytics } from "@/components/Analytics";
 
 interface DashboardClientProps {
     initialTasks: TaskWithLogs[];
@@ -21,6 +23,10 @@ interface DashboardClientProps {
 
 export function DashboardClient({ initialTasks, userId }: DashboardClientProps) {
     const [tasks, setTasks] = useState<TaskWithLogs[]>(initialTasks);
+    const [editingTask, setEditingTask] = useState<TaskWithLogs | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [showAnalytics, setShowAnalytics] = useState(false);
+
     const router = useRouter();
     const supabase = createClient();
     const todayDate = format(new Date(), "yyyy-MM-dd");
@@ -120,6 +126,29 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
         }
     };
 
+    const handleUpdateTask = async (id: string, data: any) => {
+        const { error } = await supabase
+            .from("tasks")
+            .update({
+                title: data.title,
+                frequency: data.frequency,
+                reminder_time: data.reminder_time || null,
+                days_of_week: data.days_of_week || null,
+            })
+            .eq("id", id);
+
+        if (!error) {
+            setEditingTask(null);
+            setIsEditOpen(false);
+            window.location.reload();
+        }
+    };
+
+    const openEditModal = (task: TaskWithLogs) => {
+        setEditingTask(task);
+        setIsEditOpen(true);
+    };
+
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to delete this item?")) return;
 
@@ -136,14 +165,29 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
 
     return (
         <div className="container max-w-md mx-auto p-4 pb-24">
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-6">
                 <div className="flex-1">
                     <Header completedCount={completedCount} totalCount={totalCount} />
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => logout()}>
-                    <LogOut className="h-5 w-5" />
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => setShowAnalytics(!showAnalytics)}>
+                        <PieChart className="h-5 w-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => logout()}>
+                        <LogOut className="h-5 w-5" />
+                    </Button>
+                </div>
             </div>
+
+            <div className="mb-8">
+                <QuoteCard />
+            </div>
+
+            {showAnalytics && (
+                <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <Analytics tasks={tasks} />
+                </div>
+            )}
 
             <div className="space-y-8">
                 {oneTimeTasks.length > 0 && (
@@ -172,6 +216,7 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
                                     habit={habit}
                                     onToggle={handleToggleHabit}
                                     onDelete={handleDelete}
+                                    onEdit={() => openEditModal(habit)}
                                 />
                             ))}
                         </div>
@@ -186,6 +231,18 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
             </div>
 
             <AddItemModal onAddTask={handleAddTask} onAddHabit={handleAddHabit} />
+
+            {editingTask && (
+                <AddItemModal
+                    mode="edit"
+                    isOpen={isEditOpen}
+                    onClose={() => setIsEditOpen(false)}
+                    initialData={editingTask}
+                    onAddTask={() => { }} // Not used in edit mode
+                    onAddHabit={() => { }} // Not used in edit mode
+                    onUpdateTask={handleUpdateTask}
+                />
+            )}
         </div>
     );
 }

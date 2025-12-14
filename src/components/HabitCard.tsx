@@ -10,9 +10,10 @@ interface HabitCardProps {
     habit: TaskWithLogs;
     onToggle: (habitId: string) => void;
     onDelete: (habitId: string) => void;
+    onEdit?: (habitId: string) => void;
 }
 
-export function HabitCard({ habit, onToggle, onDelete }: HabitCardProps) {
+export function HabitCard({ habit, onToggle, onDelete, onEdit }: HabitCardProps) {
     const isCompleted = habit.completed_today;
     const isBad = habit.is_bad;
 
@@ -20,10 +21,16 @@ export function HabitCard({ habit, onToggle, onDelete }: HabitCardProps) {
         <Card className="transition-all hover:shadow-sm group">
             <CardContent className="flex items-center justify-between p-4">
                 <div className="flex flex-col space-y-1 flex-1">
-                    <div className="flex items-center justify-between mr-4">
-                        <span className="font-medium">{habit.title}</span>
+                    <div className="flex items-center space-x-1 mr-2">
+                        <span className="font-medium mr-2">{habit.title}</span>
                         <button
-                            onClick={() => onDelete(habit.id)}
+                            onClick={(e) => { e.stopPropagation(); onEdit && onEdit(habit.id); }}
+                            className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100 text-xs px-1"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(habit.id); }}
                             className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                         >
                             <span className="sr-only">Delete</span>
