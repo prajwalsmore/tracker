@@ -10,6 +10,10 @@ import { AddItemModal } from "@/components/AddItemModal";
 import { TaskWithLogs, Task, TaskLog, HabitLog } from "@/types";
 import { format } from "date-fns";
 
+import { logout } from "@/app/actions/auth";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
+
 interface DashboardClientProps {
     initialTasks: TaskWithLogs[];
     userId: string;
@@ -132,7 +136,14 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
 
     return (
         <div className="container max-w-md mx-auto p-4 pb-24">
-            <Header completedCount={completedCount} totalCount={totalCount} />
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                    <Header completedCount={completedCount} totalCount={totalCount} />
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => logout()}>
+                    <LogOut className="h-5 w-5" />
+                </Button>
+            </div>
 
             <div className="space-y-8">
                 {oneTimeTasks.length > 0 && (
