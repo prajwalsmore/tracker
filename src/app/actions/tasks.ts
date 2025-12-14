@@ -26,6 +26,16 @@ export async function createTask(data: any) {
 
     if (error) {
         console.error("Create Task Error:", error);
+        // Check for Foreign Key Violation (Postgres code 23503)
+        // This usually means the User ID in your cookie doesn't exist in the database 
+        // (common after resetting DB but keeping cookies)
+        if (error.code === '23503') {
+            return { error: "Session invalid. Please Log Out and Register/Login again." };
+        }
+        // Check for Missing Column (Postgres code 42703)
+        if (error.code === '42703') {
+            return { error: "Database outdated. Please run the SQL Update script." };
+        }
         return { error: error.message };
     }
 
