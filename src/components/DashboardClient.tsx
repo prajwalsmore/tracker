@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Header } from "@/components/Header";
 import { TaskCard } from "@/components/TaskCard";
 import { HabitCard } from "@/components/HabitCard";
@@ -11,6 +10,7 @@ import { TaskWithLogs, Task, TaskLog, HabitLog } from "@/types";
 import { format } from "date-fns";
 
 import { logout } from "@/app/actions/auth";
+import { createTask, updateTask, deleteTask, toggleTask, toggleHabit } from "@/app/actions/tasks";
 import { Button } from "@/components/ui/button";
 import { LogOut, PieChart } from "lucide-react";
 import { QuoteCard } from "@/components/QuoteCard";
@@ -27,8 +27,9 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [showAnalytics, setShowAnalytics] = useState(false);
 
+    // We don't need router.refresh() as much if we update local state optimistically or revalidatePath handles it
+    // But keeping router for now
     const router = useRouter();
-    const supabase = createClient();
     const todayDate = format(new Date(), "yyyy-MM-dd");
 
     const completedCount = tasks.filter((t) => t.completed_today).length;
@@ -42,20 +43,11 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
             )
         );
 
-        if (completed) {
-            await supabase.from("task_logs").insert({
-                task_id: taskId,
-                user_id: userId,
-                date: todayDate,
-            });
-        } else {
-            await supabase
-                .from("task_logs")
-                .delete()
-                .eq("task_id", taskId)
-                .eq("date", todayDate);
+        const result = await toggleTask(taskId, completed, todayDate);
+        if (result.error) {
+            console.error(result.error);
+            // Revert on error?
         }
-        router.refresh();
     };
 
     const handleToggleHabit = async (habitId: string) => {
@@ -77,70 +69,51 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
             )
         );
 
-        if (newCompleted) {
-            await supabase.from("habit_logs").insert({
-                habit_id: habitId,
-                user_id: userId,
-                date: todayDate,
-                completed: true,
-            });
-        } else {
-            await supabase
-                .from("habit_logs")
-                .delete()
-                .eq("habit_id", habitId)
-                .eq("date", todayDate);
+        const result = await toggleHabit(habitId, newCompleted, todayDate);
+        if (result.error) {
+            console.error(result.error);
         }
-        router.refresh();
     };
 
     const handleAddTask = async (data: any) => {
-        const { error } = await supabase.from("tasks").insert({
-            user_id: userId,
-            title: data.title,
-            type: "task",
-            frequency: data.frequency,
-            reminder_time: data.reminder_time || null,
+        const result = await createTask({
+            ...data,
+            type: "task"
         });
 
-        if (!error) {
-            router.refresh();
-            // Ideally we'd fetch the new task here or wait for refresh
-            // For simplicity, we rely on router.refresh() to re-fetch server data
-            // But to make it instant, we could reload the page or fetch manually
-            window.location.reload();
+        if (result.success) {
+            // Let revalidatePath handle the refresh, but local state update would be faster
+            // Ideally we just want to verify the task is added
+            // window.location.reload(); // Simple brute force for now to ensure consistency
+        } else {
+            alert("Failed to add task: " + result.error);
         }
     };
 
     const handleAddHabit = async (data: any) => {
-        const { error } = await supabase.from("tasks").insert({
-            user_id: userId,
-            title: data.title,
+        const result = await createTask({
+            ...data,
             type: "habit",
-            is_bad: data.type === "bad",
             frequency: "daily",
+            is_bad: data.type === "bad"
         });
 
-        if (!error) {
-            window.location.reload();
+        if (result.success) {
+            // window.location.reload();
+        } else {
+            alert("Failed to add habit: " + result.error);
         }
     };
 
     const handleUpdateTask = async (id: string, data: any) => {
-        const { error } = await supabase
-            .from("tasks")
-            .update({
-                title: data.title,
-                frequency: data.frequency,
-                reminder_time: data.reminder_time || null,
-                days_of_week: data.days_of_week || null,
-            })
-            .eq("id", id);
+        const result = await updateTask(id, data);
 
-        if (!error) {
+        if (result.success) {
             setEditingTask(null);
             setIsEditOpen(false);
-            window.location.reload();
+            // window.location.reload();
+        } else {
+            alert("Failed to update: " + result.error);
         }
     };
 
@@ -152,11 +125,12 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to delete this item?")) return;
 
-        const { error } = await supabase.from("tasks").delete().eq("id", id);
-        if (!error) {
-            router.refresh();
-            // Optimistic update could be done here too
-            setTasks((prev) => prev.filter((t) => t.id !== id));
+        // Optimistic
+        setTasks((prev) => prev.filter((t) => t.id !== id));
+
+        const result = await deleteTask(id);
+        if (result.error) {
+            alert("Failed to delete: " + result.error);
         }
     };
 
