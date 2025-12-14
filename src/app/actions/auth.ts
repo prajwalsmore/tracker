@@ -1,9 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { createSession, deleteSession } from "@/lib/session";
 
 export async function login(formData: FormData) {
     const email = formData.get("email") as string;
@@ -32,14 +32,8 @@ export async function login(formData: FormData) {
         return { error: "Invalid credentials" };
     }
 
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set("user_session", user.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        path: "/",
-    });
+    // Create secure session
+    await createSession(user.id);
 
     redirect("/");
 }
@@ -82,20 +76,13 @@ export async function register(formData: FormData) {
         return { error: "Failed to create user" };
     }
 
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set("user_session", newUser.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        path: "/",
-    });
+    // Create secure session
+    await createSession(newUser.id);
 
     redirect("/");
 }
 
 export async function logout() {
-    const cookieStore = await cookies();
-    cookieStore.delete("user_session");
+    await deleteSession();
     redirect("/login");
 }

@@ -5,14 +5,10 @@ import { Task, TaskLog, HabitLog, TaskWithLogs } from "@/types";
 import { format, subDays } from "date-fns";
 import { cookies } from "next/headers";
 import { logout } from "@/app/actions/auth";
+import { verifySession } from "@/lib/session";
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("user_session")?.value;
-
-  if (!userId) {
-    redirect("/login");
-  }
+  const { userId } = await verifySession();
 
   const supabase = await createClient();
   const today = format(new Date(), "yyyy-MM-dd");
