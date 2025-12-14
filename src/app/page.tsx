@@ -1,65 +1,122 @@
-import Image from "next/image";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { DashboardClient } from "@/components/DashboardClient";
+import { Task, TaskLog, HabitLog, TaskWithLogs } from "@/types";
+import { format, subDays, isSameDay, parseISO } from "date-fns";
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+export default async function DashboardPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  // Fetch all tasks/habits for the user
+  const { data: tasksData, error: tasksError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (tasksError) {
+    console.error("Error fetching tasks:", tasksError);
+    return <div>Error loading tasks</div>;
+  }
+
+  const tasks = tasksData as Task[];
+
+  // Fetch logs for today (to check completion)
+  const { data: taskLogsData } = await supabase
+    .from("task_logs")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("date", today);
+
+  const { data: habitLogsData } = await supabase
+    .from("habit_logs")
+    .select("*")
+    .eq("user_id", user.id)
+    .gte("date", format(subDays(new Date(), 30), "yyyy-MM-dd")); // Fetch last 30 days for streak calc
+
+  const taskLogs = (taskLogsData || []) as TaskLog[];
+  const habitLogs = (habitLogsData || []) as HabitLog[];
+
+  // Combine data
+  const tasksWithLogs: TaskWithLogs[] = tasks.map((task) => {
+    if (task.type === "task") {
+      const isCompleted = taskLogs.some((log) => log.task_id === task.id);
+      return {
+        ...task,
+        completed_today: isCompleted,
+      };
+    } else {
+      // Calculate streak for habits
+      // Simple streak calculation: count consecutive days backwards from yesterday (or today if completed)
+      const habitLogsForTask = habitLogs.filter((log) => log.habit_id === task.id);
+      const isCompletedToday = habitLogsForTask.some((log) => log.date === today && log.completed);
+
+      let streak = 0;
+      let currentCheckDate = isCompletedToday ? new Date() : subDays(new Date(), 1);
+
+      // If not completed today, check if completed yesterday to maintain streak
+      // If completed today, streak starts from today
+
+      // Actually, standard streak logic:
+      // If completed today, streak = 1 + streak up to yesterday
+      // If not completed today, streak = streak up to yesterday (if yesterday was completed)
+      // BUT if yesterday was NOT completed, streak is 0 (unless we allow skip days, but let's be strict)
+
+      // Let's simplify: Just count consecutive days present in logs
+      // We need to check day by day backwards
+
+      let checkDate = isCompletedToday ? new Date() : subDays(new Date(), 1);
+
+      // If not completed today, we check yesterday. If yesterday is missing, streak is 0.
+      // If completed today, we count 1 and check yesterday.
+
+      if (isCompletedToday) streak++;
+
+      // Loop backwards
+      for (let i = 1; i <= 365; i++) { // Check up to a year back
+        const d = subDays(new Date(), i);
+        const dateStr = format(d, "yyyy-MM-dd");
+        const hasLog = habitLogsForTask.some(l => l.date === dateStr && l.completed);
+
+        if (hasLog) {
+          streak++;
+        } else {
+          // Streak broken
+          // Wait, if we are checking "yesterday" and it's missing, streak breaks.
+          // But if we started checking from today (completed), we continue.
+          // If we started checking from yesterday (today not completed), we continue.
+
+          // Correct logic:
+          // 1. Check today. If yes, streak++.
+          // 2. Check yesterday. If yes, streak++.
+          // 3. Check day before...
+          // STOP at first missing day.
+
+          // My loop logic above:
+          // If completed today, streak is 1. Then loop i=1 (yesterday). If hasLog, streak++. Else break.
+          // If NOT completed today, streak is 0. Loop i=1 (yesterday). If hasLog, streak++. Else break.
+          // This seems correct.
+          break;
+        }
+      }
+
+      return {
+        ...task,
+        completed_today: isCompletedToday,
+        streak,
+      };
+    }
+  });
+
+  return <DashboardClient initialTasks={tasksWithLogs} userId={user.id} />;
 }
