@@ -5,42 +5,47 @@ import { verifySession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
 export async function createTask(data: any) {
-    const { userId } = await verifySession();
-    const supabase = await createClient();
+    try {
+        const { userId } = await verifySession();
+        const supabase = await createClient();
 
-    const payload: any = {
-        user_id: userId,
-        title: data.title,
-        type: data.type || "task",
-        frequency: data.frequency || "once",
-        is_bad: data.is_bad || false,
-        reminder_time: data.reminder_time || null,
-    };
+        const payload: any = {
+            user_id: userId,
+            title: data.title,
+            type: data.type || "task",
+            frequency: data.frequency || "once",
+            is_bad: data.is_bad || false,
+            reminder_time: data.reminder_time || null,
+        };
 
-    // Only add days_of_week if it has values to avoid error if column is missing (backward compatibility)
-    if (data.days_of_week && data.days_of_week.length > 0) {
-        payload.days_of_week = data.days_of_week;
-    }
-
-    const { error } = await supabase.from("tasks").insert(payload);
-
-    if (error) {
-        console.error("Create Task Error:", error);
-        // Check for Foreign Key Violation (Postgres code 23503)
-        // This usually means the User ID in your cookie doesn't exist in the database 
-        // (common after resetting DB but keeping cookies)
-        if (error.code === '23503') {
-            return { error: "Session invalid. Please Log Out and Register/Login again." };
+        // Only add days_of_week if it has values to avoid error if column is missing (backward compatibility)
+        if (data.days_of_week && data.days_of_week.length > 0) {
+            payload.days_of_week = data.days_of_week;
         }
-        // Check for Missing Column (Postgres code 42703)
-        if (error.code === '42703') {
-            return { error: "Database outdated. Please run the SQL Update script." };
-        }
-        return { error: error.message };
-    }
 
-    revalidatePath("/");
-    return { success: true };
+        const { error } = await supabase.from("tasks").insert(payload);
+
+        if (error) {
+            console.error("Create Task Error:", error);
+            // Check for Foreign Key Violation (Postgres code 23503)
+            // This usually means the User ID in your cookie doesn't exist in the database 
+            // (common after resetting DB but keeping cookies)
+            if (error.code === '23503') {
+                return { error: "Session invalid. Please Log Out and Register/Login again." };
+            }
+            // Check for Missing Column (Postgres code 42703)
+            if (error.code === '42703') {
+                return { error: "Database outdated. Please run the SQL Update script." };
+            }
+            return { error: error.message };
+        }
+
+        revalidatePath("/");
+        return { success: true };
+    } catch (e: any) {
+        console.error("Server Action Exception:", e);
+        return { error: "Server Error: " + (e.message || "Unknown error") };
+    }
 }
 
 export async function updateTask(id: string, data: any) {

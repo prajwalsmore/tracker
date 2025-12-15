@@ -277,7 +277,7 @@ export function AddItemModal({
                                             <FormControl>
                                                 <RadioGroup
                                                     onValueChange={field.onChange}
-                                                    defaultValue={field.value}
+                                                    value={field.value}
                                                     className="flex space-x-4"
                                                 >
                                                     <FormItem className="flex items-center space-x-2 space-y-0">
@@ -302,7 +302,11 @@ export function AddItemModal({
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" className="w-full">
+                                <Button
+                                    type="submit"
+                                    className="w-full"
+                                    onClick={() => console.log("Create Habit Button Clicked")}
+                                >
                                     {mode === "edit" ? "Save Changes" : "Create Habit"}
                                 </Button>
                             </form>
