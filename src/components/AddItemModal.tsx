@@ -74,6 +74,11 @@ export function AddItemModal({
     const open = isOpen !== undefined ? isOpen : internalOpen;
     const setOpen = onClose || setInternalOpen;
 
+    // Debugging Mount
+    useState(() => {
+        console.log("AddItemModal: Component Mounted");
+    });
+
     // Determine active tab based on initialData or default
     const [activeTab, setActiveTab] = useState(
         initialData?.type === "habit" ? "habit" : "task"
@@ -310,17 +315,18 @@ export function AddItemModal({
                                         </FormItem>
                                     )}
                                 />
-                                <Button
+                                {/* Force using native button to debug event issues */}
+                                <button
                                     type="button"
-                                    className="w-full"
+                                    className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 font-bold"
                                     onClick={(e) => {
-                                        console.log("Manual Click Triggered");
+                                        console.log("NATIVE BUTTON CLICKED");
                                         e.preventDefault();
                                         habitForm.handleSubmit(onHabitSubmit, onError)();
                                     }}
                                 >
-                                    {mode === "edit" ? "Save Changes" : "Create Habit"}
-                                </Button>
+                                    {mode === "edit" ? "Save Changes" : "Create Habit (Native)"}
+                                </button>
                             </form>
                         </Form>
                     </TabsContent>
