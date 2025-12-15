@@ -82,9 +82,9 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
         });
 
         if (result.success) {
-            // Let revalidatePath handle the refresh, but local state update would be faster
-            // Ideally we just want to verify the task is added
-            // window.location.reload(); // Simple brute force for now to ensure consistency
+            router.refresh();
+            // Force reload to be safe until we trust revalidation fully
+            window.location.reload();
         } else {
             alert("Failed to add task: " + result.error);
         }
@@ -99,7 +99,8 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
         });
 
         if (result.success) {
-            // window.location.reload();
+            router.refresh();
+            window.location.reload();
         } else {
             alert("Failed to add habit: " + result.error);
         }
@@ -111,7 +112,8 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
         if (result.success) {
             setEditingTask(null);
             setIsEditOpen(false);
-            // window.location.reload();
+            router.refresh();
+            window.location.reload();
         } else {
             alert("Failed to update: " + result.error);
         }
@@ -131,6 +133,10 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
         const result = await deleteTask(id);
         if (result.error) {
             alert("Failed to delete: " + result.error);
+            // Revert optimistic update?
+            router.refresh();
+        } else {
+            router.refresh();
         }
     };
 
