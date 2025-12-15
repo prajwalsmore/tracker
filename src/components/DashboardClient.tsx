@@ -91,18 +91,26 @@ export function DashboardClient({ initialTasks, userId }: DashboardClientProps) 
     };
 
     const handleAddHabit = async (data: any) => {
-        const result = await createTask({
-            ...data,
-            type: "habit",
-            frequency: "daily",
-            is_bad: data.type === "bad"
-        });
+        console.log("DashboardClient: Adding Habit", data);
+        try {
+            const result = await createTask({
+                ...data,
+                type: "habit",
+                frequency: "daily",
+                is_bad: data.type === "bad"
+            });
 
-        if (result.success) {
-            router.refresh();
-            window.location.reload();
-        } else {
-            alert("Failed to add habit: " + result.error);
+            console.log("DashboardClient: Result", result);
+
+            if (result.success) {
+                router.refresh();
+                window.location.reload();
+            } else {
+                alert("Failed to add habit: " + result.error);
+            }
+        } catch (e: any) {
+            console.error("DashboardClient: Exception", e);
+            alert("An unexpected error occurred: " + e.message);
         }
     };
 

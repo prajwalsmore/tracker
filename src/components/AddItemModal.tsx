@@ -109,6 +109,7 @@ export function AddItemModal({
     };
 
     const onTaskSubmit = (data: z.infer<typeof taskSchema>) => {
+        console.log("Submitting Task:", data);
         if (mode === "edit" && onUpdateTask && initialData) {
             onUpdateTask(initialData.id, data);
         } else {
@@ -121,16 +122,17 @@ export function AddItemModal({
     };
 
     const onHabitSubmit = (data: z.infer<typeof habitSchema>) => {
-        // Habits are just tasks with special types in this app's logic
-        // If we are editing, we reuse the same update logic? 
-        // Actually the current app separates them. Let's assume onAddHabit handles create.
-        // For edit, we might route to onUpdateTask as well if the backend unifies them, 
-        // but for now let's keep it simple.
+        console.log("Submitting Habit:", data);
         onAddHabit(data);
         handleClose();
         if (mode === "create") {
             habitForm.reset();
         }
+    };
+
+    const onError = (errors: any) => {
+        console.error("Form Validation Errors:", errors);
+        alert("Please fix the errors in the form before submitting.");
     };
 
     return (
@@ -157,7 +159,7 @@ export function AddItemModal({
 
                     <TabsContent value="task">
                         <Form {...taskForm}>
-                            <form onSubmit={taskForm.handleSubmit(onTaskSubmit)} className="space-y-4">
+                            <form onSubmit={taskForm.handleSubmit(onTaskSubmit, onError)} className="space-y-4">
                                 <FormField
                                     control={taskForm.control}
                                     name="title"
@@ -252,7 +254,7 @@ export function AddItemModal({
 
                     <TabsContent value="habit">
                         <Form {...habitForm}>
-                            <form onSubmit={habitForm.handleSubmit(onHabitSubmit)} className="space-y-4">
+                            <form onSubmit={habitForm.handleSubmit(onHabitSubmit, onError)} className="space-y-4">
                                 <FormField
                                     control={habitForm.control}
                                     name="title"
