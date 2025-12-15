@@ -245,7 +245,15 @@ export function AddItemModal({
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" className="w-full">
+                                <Button
+                                    type="button"
+                                    className="w-full"
+                                    onClick={(e) => {
+                                        console.log("Manual Task Click Triggered");
+                                        e.preventDefault();
+                                        taskForm.handleSubmit(onTaskSubmit, onError)();
+                                    }}
+                                >
                                     {mode === "edit" ? "Save Changes" : "Create Task"}
                                 </Button>
                             </form>
@@ -303,9 +311,13 @@ export function AddItemModal({
                                     )}
                                 />
                                 <Button
-                                    type="submit"
+                                    type="button"
                                     className="w-full"
-                                    onClick={() => console.log("Create Habit Button Clicked")}
+                                    onClick={(e) => {
+                                        console.log("Manual Click Triggered");
+                                        e.preventDefault();
+                                        habitForm.handleSubmit(onHabitSubmit, onError)();
+                                    }}
                                 >
                                     {mode === "edit" ? "Save Changes" : "Create Habit"}
                                 </Button>
